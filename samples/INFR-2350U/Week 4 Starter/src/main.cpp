@@ -195,6 +195,8 @@ int main() {
 		glEnable(GL_CULL_FACE);
 		glDepthFunc(GL_LEQUAL); // New 
 
+		// Stritelib3 has bloom effect
+
 		#pragma region TEXTURE LOADING
 
 		// Load some textures from files
@@ -206,6 +208,15 @@ int main() {
 		Texture2D::sptr boxSpec = Texture2D::LoadFromFile("images/box-reflections.bmp");
 		Texture2D::sptr simpleFlora = Texture2D::LoadFromFile("images/SimpleFlora.png");
 		LUT3D testCube("cubes/BrightenedCorrection.cube");
+
+		// New Textures
+
+
+		Texture2D::sptr ice = Texture2D::LoadFromFile("images/ice.png");
+
+		Texture2D::sptr candy = Texture2D::LoadFromFile("images/candycaneT.png");
+
+
 
 		// Load the cube map
 		//TextureCubeMap::sptr environmentMap = TextureCubeMap::LoadFromImages("images/cubemaps/skybox/sample.jpg");
@@ -267,6 +278,22 @@ int main() {
 		simpleFloraMat->Set("u_Shininess", 8.0f);
 		simpleFloraMat->Set("u_TextureMix", 0.0f);
 
+		// New Matts
+
+		ShaderMaterial::sptr iceMatt = ShaderMaterial::Create();
+		iceMatt->Shader = shader;
+		iceMatt->Set("s_Diffuse", ice);
+		iceMatt->Set("s_Specular", ice);
+		iceMatt->Set("u_Shininess", 200.0f);
+		iceMatt->Set("u_TextureMix", 0.0f);
+
+		ShaderMaterial::sptr candyMatt = ShaderMaterial::Create();
+		candyMatt->Shader = shader;
+		candyMatt->Set("s_Diffuse", candy);
+		candyMatt->Set("s_Specular", candy);
+		candyMatt->Set("u_Shininess", 200.0f);
+		candyMatt->Set("u_TextureMix", 0.0f);
+
 		GameObject obj1 = scene->CreateEntity("Ground"); 
 		{
 			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/plane.obj");
@@ -275,11 +302,29 @@ int main() {
 
 		GameObject obj2 = scene->CreateEntity("monkey_quads");
 		{
-			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/monkey_quads.obj");
-			obj2.emplace<RendererComponent>().SetMesh(vao).SetMaterial(stoneMat);
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/candycane2.obj");
+			obj2.emplace<RendererComponent>().SetMesh(vao).SetMaterial(candyMatt);
 			obj2.get<Transform>().SetLocalPosition(0.0f, 0.0f, 2.0f);
 			obj2.get<Transform>().SetLocalRotation(0.0f, 0.0f, -90.0f);
 			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj2);
+		}
+
+		GameObject obj3 = scene->CreateEntity("Car");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/car.obj");
+			obj3.emplace<RendererComponent>().SetMesh(vao).SetMaterial(iceMatt);
+			//obj3.get<Transform>().SetLocalPosition(8.0f, 5.0f, 2.0f);
+			obj3.get<Transform>().SetLocalRotation(0.0f, 0.0f, -90.0f);
+			//BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj3);
+
+			auto pathing = BehaviourBinding::Bind<FollowPathBehaviour>(obj3);
+			// Set up a path for the object to follow
+			pathing->Points.push_back({ 8.0f, 5.0f, 2.0f });
+			pathing->Points.push_back({ 1.0f, 5.0f, 0.0f });
+
+			pathing->Speed = 2.0f;
+
+		
 		}
 
 		std::vector<glm::vec2> allAvoidAreasFrom = { glm::vec2(-4.0f, -4.0f) };
@@ -292,11 +337,14 @@ int main() {
 		glm::vec2 spawnFromHere = glm::vec2(-19.0f, -19.0f);
 		glm::vec2 spawnToHere = glm::vec2(19.0f, 19.0f);
 
-		EnvironmentGenerator::AddObjectToGeneration("models/simplePine.obj", simpleFloraMat, 150,
+
+		// 150, 150, 40
+
+		EnvironmentGenerator::AddObjectToGeneration("models/simplePine.obj", simpleFloraMat, 0,
 			spawnFromHere, spawnToHere, allAvoidAreasFrom, allAvoidAreasTo);
-		EnvironmentGenerator::AddObjectToGeneration("models/simpleTree.obj", simpleFloraMat, 150,
+		EnvironmentGenerator::AddObjectToGeneration("models/simpleTree.obj", simpleFloraMat, 0,
 			spawnFromHere, spawnToHere, allAvoidAreasFrom, allAvoidAreasTo);
-		EnvironmentGenerator::AddObjectToGeneration("models/simpleRock.obj", simpleFloraMat, 40,
+		EnvironmentGenerator::AddObjectToGeneration("models/simpleRock.obj", simpleFloraMat, 0,
 			spawnFromHere, spawnToHere, rockAvoidAreasFrom, rockAvoidAreasTo);
 		EnvironmentGenerator::GenerateEnvironment();
 
@@ -404,7 +452,34 @@ int main() {
 				auto behaviour = BehaviourBinding::Get<SimpleMoveBehaviour>(controllables[selectedVao]);
 				behaviour->Relative = !behaviour->Relative;
 				});
+
+			// Swap between Textures/ Key 1 and 2
+
+			keyToggles.emplace_back(GLFW_KEY_1, [&]() {
+				iceMatt->Set("s_Diffuse", stone);
+				iceMatt->Set("s_Specular", stoneSpec);
+				});
+
+			keyToggles.emplace_back(GLFW_KEY_2, [&]() {
+				iceMatt->Set("s_Diffuse", ice);
+				iceMatt->Set("s_Specular", ice);
+				});
+
+			keyToggles.emplace_back(GLFW_KEY_3, [&]() {
+				candyMatt->Set("s_Diffuse", stone);
+				candyMatt->Set("s_Specular", stoneSpec);
+				});
+
+			keyToggles.emplace_back(GLFW_KEY_4, [&]() {
+				candyMatt->Set("s_Diffuse", candy);
+				candyMatt->Set("s_Specular", candy);
+				});
+
 		}
+
+		// Add Bloom Here
+
+
 
 		// Initialize our timing instance and grab a reference for our use
 		Timing& time = Timing::Instance();
@@ -534,7 +609,9 @@ int main() {
 		BackendHandler::ShutdownImGui();
 	}	
 
+
 	// Clean up the toolkit logger so we don't leak memory
 	Logger::Uninitialize();
 	return 0;
 }
+
